@@ -16,6 +16,7 @@ public class JmsPutGet {
     private static final String APP_USER = "app";
     private static final String APP_PASSWORD = "passw0rd";
     private static final String QUEUE_NAME = "TEST.QUEUE.LOCAL";
+    private static final String REPLY_TO = "DEV.QUEUE.1";
 
 
     public static void main(String[] args) {
@@ -24,6 +25,7 @@ public class JmsPutGet {
         Destination destination;
         JMSProducer producer;
         JMSConsumer consumer;
+        Destination replyTo;
 
         try {
             JmsFactoryFactory ff = JmsFactoryFactory.getInstance(WMQConstants.WMQ_PROVIDER);
@@ -41,19 +43,25 @@ public class JmsPutGet {
 
             context = cf.createContext();
             destination = context.createQueue("queue:///" + QUEUE_NAME);
+            replyTo = context.createQueue("queue:///" + REPLY_TO);
 
 
             long uniqueNumber = System.currentTimeMillis() % 1000;
-            TextMessage message = context.createTextMessage("This is a test " + uniqueNumber);
+            TextMessage message = context.createTextMessage("My unique number " + uniqueNumber);
+
 
             producer = context.createProducer();
-            producer.setJMSType("message");
+            producer.setJMSType("SuperSecretMessage");
+            producer.setJMSReplyTo(replyTo);
             producer.send(destination, message);
-            System.out.println("Sent message to the queue :\n" + message.getJMSMessageID());
+            System.out.println("Sent message to the queue : " + message.getText()
+                    + "\nMessage Id " + message.getJMSMessageID()
+                    + "\nDestination " + message.getJMSDestination()
+                    + "\nReplyTo " + message.getJMSReplyTo());
             System.out.print("---------------------------------------------------");
 
 
-            consumer = context.createConsumer(destination);
+           /* consumer = context.createConsumer(destination);
             TextMessage receivedMessage = (TextMessage) consumer.receive();
 
 
@@ -66,7 +74,7 @@ public class JmsPutGet {
                 System.out.println("\nReceived different message from the queue:\n"
                         + receivedMessage.getJMSMessageID());
             }
-
+*/
 
 
 

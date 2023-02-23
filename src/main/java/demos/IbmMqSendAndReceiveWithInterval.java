@@ -1,3 +1,5 @@
+package demos;
+
 import com.ibm.mq.*;
 import com.ibm.mq.constants.MQConstants;
 
