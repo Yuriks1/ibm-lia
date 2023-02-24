@@ -6,6 +6,7 @@ import com.ibm.msg.client.jms.JmsFactoryFactory;
 import com.ibm.msg.client.wmq.WMQConstants;
 
 import javax.jms.*;
+import java.io.EOFException;
 import java.io.IOException;
 
 
@@ -85,9 +86,9 @@ public class JmsPutGet {
 
                 System.out.println("\nReceived same message from the queue " + REPLY_TO + " :\n"
                         + mqMessage.getStringProperty("JMSCorrelationID")
-                        + "\nReceived text " + mqMessage.readStringOfByteLength(mqMessage.getMessageLength()));
+                        + "\nMessage text : " + mqMessage.readStringOfByteLength(mqMessage.getMessageLength()));
             } else {
-                System.out.println("\nReceived different message from the queue" + REPLY_TO + " :\n" + mqMessage.getStringProperty("JMSCorrelationID"));
+                System.out.println("\nReceived different message from the queue " + REPLY_TO + " :\n" + mqMessage.getStringProperty("JMSCorrelationID"));
             }
 
 

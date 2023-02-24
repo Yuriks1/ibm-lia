@@ -26,14 +26,15 @@ public class BackendApp {
             MQQueueManager qmgr = new MQQueueManager(QUEUE_MANAGER_NAME);
             MQGetMessageOptions gmo = new MQGetMessageOptions();
 
-            gmo.options = MQConstants.MQGMO_NO_SYNCPOINT | MQConstants.MQGMO_WAIT;
+            gmo.options = MQConstants.MQGMO_NO_SYNCPOINT | MQConstants.MQGMO_WAIT | MQConstants.MQGMO_FAIL_IF_QUIESCING | MQConstants.MQGMO_CONVERT;
             gmo.waitInterval = RECEIVE_DELAY_SECONDS * 1000;
 
 
-            MQQueue queue = qmgr.accessQueue(QUEUE_NAME, MQConstants.MQOO_INPUT_AS_Q_DEF | MQConstants.MQOO_FAIL_IF_QUIESCING | MQConstants.MQOO_INQUIRE);    // Get the message properties in the handle
+            MQQueue queue = qmgr.accessQueue(QUEUE_NAME, MQConstants.MQOO_INPUT_AS_Q_DEF | MQConstants.MQOO_FAIL_IF_QUIESCING | MQConstants.MQOO_INQUIRE
+                  );    // Get the message properties in the handle
             MQMessage message = new MQMessage();
             queue.get(message, gmo);
-
+            String messageText = message.readStringOfByteLength(message.getMessageLength());
             System.out.println("Received message " + message.putDateTime.get(Calendar.HOUR_OF_DAY)
                     + ":" + message.putDateTime.get(Calendar.MINUTE)
                     + ":" + message.putDateTime.get(Calendar.SECOND)
@@ -42,24 +43,25 @@ public class BackendApp {
                     + "\nFrom queue : " + QUEUE_NAME
                     + "\nMessage ReplyTo : " + message.getStringProperty("JMSReplyTo")
                     + "\nMessage id : " + message.getStringProperty("JMSMessageID")
-                    + "\nMessage text : " + message.readStringOfByteLength(message.getMessageLength()));
+                    + "\nMessage text : " +  messageText);
 
             System.out.print("---------------------------------------------------");
             System.out.println();
             System.out.println("Creating a reply message : ");
 
-
             // Create a reply message and copy the information from the received message
+
             MQMessage replyToMessage = new MQMessage();
             replyToMessage.format = MQConstants.MQFMT_STRING;
+            replyToMessage.messageType = MQConstants.MQMT_REPLY;
+            replyToMessage.correlationId = message.messageId;
             replyToMessage.replyToQueueManagerName = message.replyToQueueManagerName;
             replyToMessage.replyToQueueName = message.replyToQueueName;
-            replyToMessage.correlationId = message.messageId;// Set the correlation id to the message id of the received message
-
-
+            replyToMessage.writeString(messageText);
             System.out.println("ReplyToQueueManagerName : " + replyToMessage.replyToQueueManagerName);
             System.out.println("ReplyToQueueName : " + replyToMessage.replyToQueueName);
             System.out.println("CorrelationId : " + replyToMessage.getStringProperty("JMSCorrelationID"));
+            System.out.println("Message text : " +  messageText + " - reply");
 
 
             // Set the message text
