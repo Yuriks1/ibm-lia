@@ -6,7 +6,6 @@ import com.ibm.msg.client.jms.JmsFactoryFactory;
 import com.ibm.msg.client.wmq.WMQConstants;
 
 import javax.jms.*;
-import java.io.EOFException;
 import java.io.IOException;
 
 
@@ -14,7 +13,6 @@ public class JmsPutGet {
 
     private static final int RECEIVE_DELAY_SECONDS = 2;
     private static int status = 1;
-
     private static final String HOST = "localhost";
     private static final int PORT = 1414;
     private static final String CHANNEL = "DEV.APP.SVRCONN";
@@ -24,7 +22,7 @@ public class JmsPutGet {
     private static final String QUEUE_NAME = "TEST.QUEUE.LOCAL";
     private static final String REPLY_TO = "DEV.QUEUE.1";
 
-    private static final int SEND_DELAY_SECONDS = 1;
+    private static final int SEND_DELAY_SECONDS = 2;
 
 
     public static void main(String[] args) {
@@ -61,10 +59,13 @@ public class JmsPutGet {
                 producer = context.createProducer();
                 producer.setJMSReplyTo(replyTo);
                 producer.send(destination, message);
-                System.out.println("Sent message to the queue : " + message.getText() + "\nMessage Id " + message.getJMSMessageID() + "\nDestination " + message.getJMSDestination() + "\nReplyTo " + message.getJMSReplyTo());
+                System.out.println("Sent message to the queue : " + message.getText()
+                        + "\nMessage Id " + message.getJMSMessageID()
+                        + "\nDestination " + message.getJMSDestination()
+                        + "\nReplyTo " + message.getJMSReplyTo());
                 System.out.print("---------------------------------------------------");
                 System.out.println();
-                System.out.println("Waiting " + SEND_DELAY_SECONDS + " seconds before sending next message");
+                //System.out.println("Waiting " + SEND_DELAY_SECONDS + " seconds before sending next message");
                 System.out.println();
                 Thread.sleep(SEND_DELAY_SECONDS * 1000);
             }
@@ -74,24 +75,26 @@ public class JmsPutGet {
 
             MQQueueManager qmgr = new MQQueueManager(QMGR);
             MQGetMessageOptions gmo = new MQGetMessageOptions();
+            gmo.waitInterval = RECEIVE_DELAY_SECONDS * 1000;
+
 
             gmo.options = MQConstants.MQGMO_NO_SYNCPOINT | MQConstants.MQGMO_WAIT;
 
 
-            MQQueue queue = qmgr.accessQueue(REPLY_TO, MQConstants.MQOO_INPUT_AS_Q_DEF | MQConstants.MQOO_FAIL_IF_QUIESCING | MQConstants.MQOO_INQUIRE);
+            MQQueue queue = qmgr.accessQueue(REPLY_TO, MQConstants.MQOO_INPUT_AS_Q_DEF
+                    | MQConstants.MQOO_FAIL_IF_QUIESCING | MQConstants.MQOO_INQUIRE);
             MQMessage mqMessage = new MQMessage();
             queue.get(mqMessage, gmo);
 
             if (mqMessage.getStringProperty("JMSCorrelationID").equals(message.getJMSMessageID())) {
 
-                System.out.println("\nReceived same message from the queue " + REPLY_TO + " :\n"
-                        + mqMessage.getStringProperty("JMSCorrelationID")
+                System.out.println("\nReceived same message from the queue " + REPLY_TO
+                        + " :\n" + mqMessage.getStringProperty("JMSCorrelationID")
                         + "\nMessage text : " + mqMessage.readStringOfByteLength(mqMessage.getMessageLength()));
             } else {
-                System.out.println("\nReceived different message from the queue " + REPLY_TO + " :\n" + mqMessage.getStringProperty("JMSCorrelationID"));
+                System.out.println("\nReceived different message from the queue " + REPLY_TO + " :\n"
+                        + mqMessage.getStringProperty("JMSCorrelationID"));
             }
-
-
             queue.close();
             Thread.sleep(RECEIVE_DELAY_SECONDS * 1000);
 

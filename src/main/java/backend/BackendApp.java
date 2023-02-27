@@ -3,7 +3,6 @@ package backend;
 import com.ibm.mq.*;
 import com.ibm.mq.constants.MQConstants;
 
-import javax.jms.TextMessage;
 import java.util.Calendar;
 
 public class BackendApp {
@@ -12,6 +11,8 @@ public class BackendApp {
     private static final String QUEUE_NAME = "TEST.QUEUE.LOCAL";
     private static final String REPLYTO_QUEUE_NAME = "DEV.QUEUE.1";
     private static final int RECEIVE_DELAY_SECONDS = 2;
+    private static final int SEND_DELAY_SECONDS = 2;
+
 
     public static void main(String[] args) {
         try {
@@ -26,12 +27,14 @@ public class BackendApp {
             MQQueueManager qmgr = new MQQueueManager(QUEUE_MANAGER_NAME);
             MQGetMessageOptions gmo = new MQGetMessageOptions();
 
-            gmo.options = MQConstants.MQGMO_NO_SYNCPOINT | MQConstants.MQGMO_WAIT | MQConstants.MQGMO_FAIL_IF_QUIESCING | MQConstants.MQGMO_CONVERT;
+            gmo.options = MQConstants.MQGMO_NO_SYNCPOINT | MQConstants.MQGMO_WAIT
+                    | MQConstants.MQGMO_FAIL_IF_QUIESCING | MQConstants.MQGMO_CONVERT;
             gmo.waitInterval = RECEIVE_DELAY_SECONDS * 1000;
 
 
-            MQQueue queue = qmgr.accessQueue(QUEUE_NAME, MQConstants.MQOO_INPUT_AS_Q_DEF | MQConstants.MQOO_FAIL_IF_QUIESCING | MQConstants.MQOO_INQUIRE
-                  );    // Get the message properties in the handle
+            MQQueue queue = qmgr.accessQueue(QUEUE_NAME, MQConstants.MQOO_INPUT_AS_Q_DEF
+                    | MQConstants.MQOO_FAIL_IF_QUIESCING
+                    | MQConstants.MQOO_INQUIRE);
             MQMessage message = new MQMessage();
             queue.get(message, gmo);
             String messageText = message.readStringOfByteLength(message.getMessageLength());
@@ -43,13 +46,15 @@ public class BackendApp {
                     + "\nFrom queue : " + QUEUE_NAME
                     + "\nMessage ReplyTo : " + message.getStringProperty("JMSReplyTo")
                     + "\nMessage id : " + message.getStringProperty("JMSMessageID")
-                    + "\nMessage text : " +  messageText);
+                    + "\nMessage text : " + messageText);
 
             System.out.print("---------------------------------------------------");
             System.out.println();
             System.out.println("Creating a reply message : ");
 
-            // Create a reply message and copy the information from the received message
+
+            // Create a reply message and copy the information from the received message'
+            Thread.sleep(SEND_DELAY_SECONDS * 1000);
 
             MQMessage replyToMessage = new MQMessage();
             replyToMessage.format = MQConstants.MQFMT_STRING;
@@ -61,18 +66,17 @@ public class BackendApp {
             System.out.println("ReplyToQueueManagerName : " + replyToMessage.replyToQueueManagerName);
             System.out.println("ReplyToQueueName : " + replyToMessage.replyToQueueName);
             System.out.println("CorrelationId : " + replyToMessage.getStringProperty("JMSCorrelationID"));
-            System.out.println("Message text : " +  messageText + " - reply");
+            System.out.println("Message text : " + messageText);
 
 
-            // Set the message text
-            MQQueue replyQueue = qmgr.accessQueue(REPLYTO_QUEUE_NAME, MQConstants.MQOO_OUTPUT | MQConstants.MQOO_FAIL_IF_QUIESCING);
+            MQQueue replyQueue = qmgr.accessQueue(REPLYTO_QUEUE_NAME, MQConstants.MQOO_OUTPUT
+                    | MQConstants.MQOO_FAIL_IF_QUIESCING);
             replyQueue.put(replyToMessage);
             System.out.println("Reply message sent to queue : " + REPLYTO_QUEUE_NAME);
             System.out.print("---------------------------------------------------");
             System.out.println();
             queue.close();
-            Thread.sleep(RECEIVE_DELAY_SECONDS * 1000);
-
+            Thread.sleep(SEND_DELAY_SECONDS * 1000);
 
 
             qmgr.disconnect();
