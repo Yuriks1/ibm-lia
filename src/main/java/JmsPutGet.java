@@ -21,8 +21,8 @@ public class JmsPutGet {
     private static final String APP_PASSWORD = "passw0rd";
     private static final String QUEUE_NAME = "TEST.QUEUE.LOCAL";
     private static final String REPLY_TO = "DEV.QUEUE.1";
-    private static final int SEND_DELAY_SECONDS = 2;
-    private static final int RECEIVE_DELAY_SECONDS = 20;
+    private static final int SEND_DELAY_SECONDS = 5;
+    private static final int RECEIVE_DELAY_SECONDS = 30;
 
 
     public static void main(String[] args) {
@@ -56,6 +56,8 @@ public class JmsPutGet {
             int MAX_MESSAGES;
 
 
+
+
             while (true) {
 
                 System.out.println("Enter number of messages to send (1-10) or 0 to exit");
@@ -80,7 +82,10 @@ public class JmsPutGet {
                 producer = context.createProducer();
                 producer.setJMSReplyTo(replyTo);
                 producer.send(destination, message);
-                System.out.println("Sent message to the queue : " + message.getText() + "\nMessage Id " + message.getJMSMessageID() + "\nDestination " + message.getJMSDestination() + "\nReplyTo " + message.getJMSReplyTo());
+                System.out.println("Sent message to the queue : " + message.getText()
+                        + "\nMessage Id " + message.getJMSMessageID()
+                        + "\nDestination " + message.getJMSDestination()
+                        + "\nReplyTo " + message.getJMSReplyTo());
                 System.out.print("---------------------------------------------------");
                 System.out.println();
                 //System.out.println("Waiting " + SEND_DELAY_SECONDS + " seconds before sending next message");
@@ -93,29 +98,42 @@ public class JmsPutGet {
             MQQueueManager qmgr = new MQQueueManager(QMGR);
             MQGetMessageOptions gmo = new MQGetMessageOptions();
             gmo.waitInterval = RECEIVE_DELAY_SECONDS * 1000;
-            gmo.options = MQConstants.MQGMO_NO_SYNCPOINT | MQConstants.MQGMO_WAIT;
-            MQQueue queue = qmgr.accessQueue(REPLY_TO, MQConstants.MQOO_INPUT_AS_Q_DEF | MQConstants.MQOO_FAIL_IF_QUIESCING | MQConstants.MQOO_INQUIRE);
-            MQMessage mqMessage = new MQMessage();
-            queue.get(mqMessage, gmo);
 
-            while (mqMessage != null) {
+            MQQueue queue = qmgr.accessQueue(REPLY_TO, MQConstants.MQOO_INPUT_AS_Q_DEF );
+
+
+            long start = System.currentTimeMillis();
+            long end = start + 30 * 1000;
+            while (System.currentTimeMillis() < end) {
+                Thread.sleep(SEND_DELAY_SECONDS * 1000);
+                MQMessage mqMessage = new MQMessage();
+                queue.get(mqMessage, gmo);
+                String messageText = mqMessage.readStringOfByteLength(mqMessage.getMessageLength());
+
                 if (mqMessage.getStringProperty("JMSCorrelationID").equals(message.getJMSMessageID())) {
 
-                    System.out.println("\nReceived same message from the queue " + REPLY_TO + " :\n" + mqMessage.getStringProperty("JMSCorrelationID") + "\nMessage text : " + mqMessage.readStringOfByteLength(mqMessage.getMessageLength()));
+                    System.out.println("\nReceived same message from the queue " + REPLY_TO
+                            + "\nWith CorrelationId" + mqMessage.getStringProperty("JMSCorrelationID")
+                            + "\nMessage text : " + messageText);
+
+                } else if (!mqMessage.getStringProperty("JMSCorrelationID").equals(message.getJMSMessageID())) {
+                    System.out.println("\nReceived different message from the queue " + REPLY_TO
+                            + "\nWith CorrelationId" + mqMessage.getStringProperty("JMSCorrelationID")
+                            + "\nMessage text : " + messageText);
 
                 } else {
-                    System.out.println("\nReceived different message from the queue " + REPLY_TO + " :\n" + mqMessage.getStringProperty("JMSCorrelationID") + "\nMessage text : " + mqMessage.readStringOfByteLength(mqMessage.getMessageLength()));
-
+                    System.out.println("\nNo message received from the queue "
+                            + REPLY_TO + " within " + RECEIVE_DELAY_SECONDS + " seconds");
                 }
-                mqMessage = new MQMessage();
-                queue.get(mqMessage, gmo);
-                System.out.println("---------------------------------------------------\n");
-
-            };
+            }
 
 
-            queue.close();
+
+
+
+
             Thread.sleep(RECEIVE_DELAY_SECONDS * 1000);
+            queue.close();
             qmgr.disconnect();
             System.out.println("Disconnected from IBM MQ");
 
