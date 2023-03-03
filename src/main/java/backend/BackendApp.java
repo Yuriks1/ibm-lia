@@ -32,13 +32,16 @@ public class BackendApp {
             MQQueueManager qmgr = new MQQueueManager(QUEUE_MANAGER_NAME);
             MQGetMessageOptions gmo = new MQGetMessageOptions();
 
-            gmo.options = MQConstants.MQGMO_NO_SYNCPOINT | MQConstants.MQGMO_WAIT
-                    | MQConstants.MQGMO_FAIL_IF_QUIESCING | MQConstants.MQGMO_CONVERT;
+            gmo.options = MQConstants.MQGMO_NO_SYNCPOINT | MQConstants.MQGMO_WAIT;
+
             gmo.waitInterval = DELAY_SECONDS * 1000;
 
             MQQueue queue = qmgr.accessQueue(QUEUE_NAME, MQConstants.MQOO_INPUT_AS_Q_DEF
                     | MQConstants.MQOO_FAIL_IF_QUIESCING | MQConstants.MQOO_INQUIRE | MQConstants.MQOO_OUTPUT
                     | MQConstants.MQOO_SET_IDENTITY_CONTEXT);
+
+            MQQueue replyQueue = qmgr.accessQueue(REPLYTO_QUEUE_NAME, MQConstants.MQOO_OUTPUT
+                    | MQConstants.MQOO_FAIL_IF_QUIESCING | MQConstants.MQOO_INQUIRE | MQConstants.MQOO_SET_IDENTITY_CONTEXT);
 
 
             long start = System.currentTimeMillis();
@@ -75,30 +78,34 @@ public class BackendApp {
                 replyToMessage.replyToQueueManagerName = message.replyToQueueManagerName;
                 replyToMessage.replyToQueueName = message.replyToQueueName;
                 replyToMessage.writeString(messageText);
-                System.out.println("ReplyToQueueManagerName : " + replyToMessage.replyToQueueManagerName);
-                System.out.println("ReplyToQueueName : " + replyToMessage.replyToQueueName);
-                System.out.println("CorrelationId : " + replyToMessage.getStringProperty("JMSCorrelationID"));
-                System.out.println("Message text : " + messageText);
-
+                System.out.println("ReplyToQueueManagerName : " + replyToMessage.replyToQueueManagerName
+                        + "\nReplyToQueueName : " + replyToMessage.replyToQueueName
+                        + "\nCorrelationId : " + replyToMessage.getStringProperty("JMSCorrelationID")
+                        + "\nMessage text : " + messageText);
+                System.out.println();
                 // Send the reply message to the reply queue
-                MQQueue replyQueue = qmgr.accessQueue(REPLYTO_QUEUE_NAME, MQConstants.MQOO_OUTPUT
-                        | MQConstants.MQOO_FAIL_IF_QUIESCING | MQConstants.MQOO_INQUIRE | MQConstants.MQOO_SET_IDENTITY_CONTEXT);
                 replyQueue.put(replyToMessage);
                 System.out.println("Reply message sent to queue : " + REPLYTO_QUEUE_NAME);
                 System.out.print("---------------------------------------------------\n");
 
-            } // end while
+            }
 
-            System.out.print("---------------------------------------------------");
             queue.close();
             qmgr.disconnect();
-            System.out.println("Disconnected from queue manager " + QUEUE_MANAGER_NAME + " and closed queue " + QUEUE_NAME + ".");
+            System.out.println("Disconnected from queue manager "
+                    + QUEUE_MANAGER_NAME
+                    + " and closed queue " + QUEUE_NAME + ".");
 
         } catch (MQException mqe) {
             System.err.println("MQException: " + mqe.getMessage());
         } catch (Exception e) {
             System.err.println("Exception: " + e.getMessage());
         }
+    }
+
+    private static void receiveMessage() {
+
+
     }
 }
 

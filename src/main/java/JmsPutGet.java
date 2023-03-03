@@ -99,7 +99,8 @@ public class JmsPutGet {
             MQGetMessageOptions gmo = new MQGetMessageOptions();
             gmo.waitInterval = RECEIVE_DELAY_SECONDS * 1000;
 
-            MQQueue queue = qmgr.accessQueue(REPLY_TO, MQConstants.MQOO_INPUT_AS_Q_DEF );
+            MQQueue queue = qmgr.accessQueue(REPLY_TO, MQConstants.MQOO_INPUT_AS_Q_DEF
+                    | MQConstants.MQOO_FAIL_IF_QUIESCING);
 
 
             long start = System.currentTimeMillis();
