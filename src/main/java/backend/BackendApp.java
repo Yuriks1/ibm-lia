@@ -41,6 +41,8 @@ public class BackendApp {
             MQQueue replyQueue = qmgr.accessQueue(REPLYTO_QUEUE_NAME, MQConstants.MQOO_OUTPUT
                     | MQConstants.MQOO_FAIL_IF_QUIESCING | MQConstants.MQOO_INQUIRE | MQConstants.MQOO_SET_IDENTITY_CONTEXT);
 
+            System.out.println("Waiting for a message from the queue " + QUEUE_NAME + "...");
+
             // Set the time that the application will wait for a message
             long start = System.currentTimeMillis();
             long end = start + 30 * 1000;

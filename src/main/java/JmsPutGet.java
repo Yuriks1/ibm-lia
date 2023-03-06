@@ -1,13 +1,15 @@
-import com.ibm.mq.*;
+import com.ibm.mq.MQGetMessageOptions;
+import com.ibm.mq.MQMessage;
+import com.ibm.mq.MQQueue;
+import com.ibm.mq.MQQueueManager;
 import com.ibm.mq.constants.MQConstants;
+import com.ibm.mq.jms.MQConnectionFactory;
 import com.ibm.msg.client.jms.JmsConnectionFactory;
 import com.ibm.msg.client.jms.JmsFactoryFactory;
 import com.ibm.msg.client.wmq.WMQConstants;
+import com.ibm.msg.client.wmq.compat.jms.internal.JMSC;
 
-import javax.jms.Destination;
-import javax.jms.JMSContext;
-import javax.jms.JMSProducer;
-import javax.jms.TextMessage;
+import javax.jms.*;
 import java.util.Scanner;
 
 
@@ -24,6 +26,9 @@ public class JmsPutGet {
     private static final int SEND_DELAY_SECONDS = 3;
     private static final int RECEIVE_DELAY_SECONDS = 30;
 
+    private static final String QUEUE_MANAGER = "QMLOCAL";
+    private static final int MESSAGE_COUNT = 10;
+
 
     public static void main(String[] args) {
 
@@ -33,6 +38,7 @@ public class JmsPutGet {
         Destination destination;
         JMSProducer producer;
         Destination replyTo;
+
 
         try {
             // Create a connection factory
@@ -49,12 +55,31 @@ public class JmsPutGet {
             cf.setStringProperty(WMQConstants.USERID, APP_USER);
             cf.setStringProperty(WMQConstants.PASSWORD, APP_PASSWORD);
 
+
             context = cf.createContext();
             destination = context.createQueue("queue:///" + QUEUE_NAME);
             replyTo = context.createQueue("queue:///" + REPLY_TO);
 
+
+            MQConnectionFactory factory = new MQConnectionFactory();
+            factory.setHostName(HOST);
+            factory.setPort(PORT);
+            factory.setTransportType(JMSC.MQJMS_TP_CLIENT_MQ_TCPIP);
+            factory.setQueueManager(QUEUE_MANAGER);
+            factory.setChannel(CHANNEL);
+
+            Connection connection = factory.createConnection();
+            connection.start();
+
+            Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+
+
             TextMessage message = null;
             int MAX_MESSAGES;
+
+            Queue recvQueue = session.createQueue(REPLY_TO);
+            MessageConsumer consumer = session.createConsumer(recvQueue);
+
 
             // Get the number of messages to send from the user
             while (true) {
@@ -74,11 +99,11 @@ public class JmsPutGet {
             }
 
             // Create a number of messages as defined by the user
-            for (int i = 0; i < MAX_MESSAGES; i++) {
+            for (int i = 1; i <= MAX_MESSAGES; i++) {
 
                 // Create a unique number to identify each message
-                long uniqueNumber = System.currentTimeMillis() % 1000; // Unique number to identify each message
-                message = context.createTextMessage("My unique number " + uniqueNumber);
+                //long uniqueNumber = System.currentTimeMillis() % 1000; // Unique number to identify each message
+                message = context.createTextMessage("Message " + i);
                 producer = context.createProducer();
                 producer.setJMSReplyTo(replyTo);
 
@@ -92,7 +117,31 @@ public class JmsPutGet {
                 Thread.sleep(SEND_DELAY_SECONDS * 1000);
             }
 
+          /*  // receive and check messages
+
+            long start = System.currentTimeMillis();
+            long end = start + 30 * 1000;
+
+            while (System.currentTimeMillis() < end) {
+
+
+                    TextMessage receivedMessage = (TextMessage) consumer.receive(5000);
+
+                    if (!receivedMessage.getText().equals(message.getText())) {
+                        System.out.println("Mismatch between sent and received message at  " + message.getText() + " : " + receivedMessage.getText());
+                    } else if (receivedMessage.getText().equals(message.getText())) {
+                        System.out.println("Received number is same as sent  " + message.getText()+ " : " + receivedMessage.getText());
+                    }
+                    else {
+                        System.out.println("No message received");
+                    }
+                }
+*/
+
+
             // Gets the message from the queue
+
+
             System.out.println("Waiting " + RECEIVE_DELAY_SECONDS + " seconds to receive messages!\n");
             MQQueueManager qmgr = new MQQueueManager(QMGR);
             MQGetMessageOptions gmo = new MQGetMessageOptions();
@@ -117,6 +166,11 @@ public class JmsPutGet {
                 queue.get(mqMessage, gmo);
                 String messageText = mqMessage.readStringOfByteLength(mqMessage.getMessageLength());
 
+                if (mqMessage == null) {
+                    System.out.println("No message received within timeout period");
+                    continue;
+                }
+
                 // Check if the message received is the same as the one sent
                 if (mqMessage.getStringProperty("JMSCorrelationID").equals(message.getJMSMessageID())) {
 
@@ -130,8 +184,7 @@ public class JmsPutGet {
                             + "\nMessage text : " + messageText);
 
                 } else {
-                    System.out.println("\nNo message received from the queue "
-                            + REPLY_TO + " within " + RECEIVE_DELAY_SECONDS + " seconds");
+                    System.out.println("Something went wrong");
                 }
             }
 
@@ -141,9 +194,11 @@ public class JmsPutGet {
             System.out.println("Disconnected from IBM MQ");
 
 
+            connection.close();
+
+            System.out.println("Connection closed");
+
             // Catch any exceptions that may have occurred
-        } catch (MQException mqe) {
-            System.err.println("MQException: " + mqe.getMessage());
         } catch (InterruptedException ie) {
             System.err.println("InterruptedException: " + ie.getMessage());
         } catch (Exception e) {
